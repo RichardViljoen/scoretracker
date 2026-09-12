@@ -72,8 +72,24 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('Service Worker registered'))
+                    .then(reg => {
+                        console.log('Service Worker registered');
+                        // Check for a newer sw.js every time the app is opened,
+                        // not just once every 24h — matches wanting the latest
+                        // code as soon as the phone has any connectivity.
+                        reg.update();
+                    })
                     .catch(err => console.log('Service Worker registration failed', err));
+            });
+
+            // A new service worker taking control means new app.js/index.html
+            // were fetched too. Reload once so the running page actually picks
+            // them up, instead of silently keeping the old JS running forever.
+            let refreshingAfterUpdate = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshingAfterUpdate) return;
+                refreshingAfterUpdate = true;
+                window.location.reload();
             });
         }
     </script>
