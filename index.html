@@ -31,24 +31,26 @@
         </header>
 
         <main id="scoreboard">
-            <div class="score-column" id="home-column">
-                <div class="label">HOME</div>
+            <div class="score-column team-blue" id="home-column">
+                <div class="label">BLUE</div>
                 <div class="score-display" id="home-score">0</div>
                 <div class="controls">
-                    <button class="manual-btn" id="home-minus" aria-label="Decrease Home Score">−</button>
-                    <button class="manual-btn" id="home-plus" aria-label="Increase Home Score">+</button>
+                    <button class="manual-btn" id="home-minus" aria-label="Decrease Blue Score">−</button>
+                    <button class="manual-btn" id="home-plus" aria-label="Increase Blue Score">+</button>
                 </div>
             </div>
             <div class="divider"></div>
-            <div class="score-column" id="away-column">
-                <div class="label">AWAY</div>
+            <div class="score-column team-red" id="away-column">
+                <div class="label">RED</div>
                 <div class="score-display" id="away-score">0</div>
                 <div class="controls">
-                    <button class="manual-btn" id="away-minus" aria-label="Decrease Away Score">−</button>
-                    <button class="manual-btn" id="away-plus" aria-label="Increase Away Score">+</button>
+                    <button class="manual-btn" id="away-minus" aria-label="Decrease Red Score">−</button>
+                    <button class="manual-btn" id="away-plus" aria-label="Increase Red Score">+</button>
                 </div>
             </div>
         </main>
+
+        <div id="winner-banner" hidden></div>
 
         <div id="overlay">
             <div class="overlay-content">
@@ -60,7 +62,7 @@
                     <p style="font-size: 0.9rem; opacity: 0.8;">iPhone: Share > Add to Home<br>Android: Menu > Install
                     </p>
                 </div>
-                <p class="hint">Voice: "Point Home" / "Point Away" / "End Match"</p>
+                <p class="hint">Voice: "Point Blue" / "Point Red" / "End Match"</p>
                 <p class="secure-note" id="voice-model-note">Voice recognition runs fully on-device (Vosk). First launch needs internet once to download the ~40MB model; after that it works with zero connectivity.</p>
             </div>
         </div>

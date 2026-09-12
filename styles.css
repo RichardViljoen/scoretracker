@@ -5,6 +5,8 @@
     --dim-text: rgba(255, 255, 255, 0.5);
     --btn-bg: rgba(255, 255, 255, 0.1);
     --btn-hover: rgba(255, 255, 255, 0.2);
+    --blue: #3b82f6;
+    --red: #ef4444;
 }
 
 * {
@@ -219,6 +221,16 @@ body {
     flex-shrink: 0;
 }
 
+.team-blue .label,
+.team-blue .score-display {
+    color: var(--blue);
+}
+
+.team-red .label,
+.team-red .score-display {
+    color: var(--red);
+}
+
 .score-display {
     font-size: clamp(8rem, 30vmin, 50vh);
     font-weight: 900;
@@ -267,6 +279,50 @@ body {
 
 .manual-btn:active {
     transform: scale(0.95);
+}
+
+#winner-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+    pointer-events: none;
+    background-color: rgba(0, 0, 0, 0.6);
+    font-size: clamp(2.5rem, 10vmin, 6rem);
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: center;
+    animation: winner-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#winner-banner[hidden] {
+    display: none;
+}
+
+#winner-banner.winner-blue {
+    color: var(--blue);
+}
+
+#winner-banner.winner-red {
+    color: var(--red);
+}
+
+@keyframes winner-pop {
+    0% {
+        transform: scale(0.7);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 #overlay {

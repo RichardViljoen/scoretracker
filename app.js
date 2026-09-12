@@ -1,7 +1,12 @@
+const TEAM_LABELS = { home: 'Blue', away: 'Red' };
+const WIN_SCORE = 11;
+const WIN_MARGIN = 2;
+
 const state = {
     home: 0,
     away: 0,
-    isListening: false
+    isListening: false,
+    gameOver: false
 };
 
 const elements = {
@@ -14,7 +19,8 @@ const elements = {
     resetBtn: document.getElementById('reset-btn'),
     startBtn: document.getElementById('start-btn'),
     overlay: document.getElementById('overlay'),
-    listeningIndicator: document.getElementById('listening-indicator')
+    listeningIndicator: document.getElementById('listening-indicator'),
+    winnerBanner: document.getElementById('winner-banner')
 };
 
 // Initialize State from LocalStorage
@@ -24,14 +30,19 @@ function init() {
         const parsed = JSON.parse(saved);
         state.home = parsed.home || 0;
         state.away = parsed.away || 0;
+        state.gameOver = !!parsed.gameOver;
         updateUI();
+        if (state.gameOver) {
+            showWinnerBanner(state.home > state.away ? 'home' : 'away');
+        }
     }
 }
 
 function save() {
     localStorage.setItem('scoretracker_state', JSON.stringify({
         home: state.home,
-        away: state.away
+        away: state.away,
+        gameOver: state.gameOver
     }));
 }
 
@@ -49,15 +60,99 @@ function updateUI() {
 }
 
 function changeScore(side, delta) {
+    if (state.gameOver) return;
+
     state[side] = Math.max(0, state[side] + delta);
     updateUI();
     save();
+
+    if (delta > 0) {
+        playPointSound();
+        checkForWin();
+    }
+}
+
+function checkForWin() {
+    const leader = state.home > state.away ? 'home' : state.away > state.home ? 'away' : null;
+    if (!leader) return;
+
+    const leaderScore = state[leader];
+    const otherScore = leader === 'home' ? state.away : state.home;
+
+    if (leaderScore >= WIN_SCORE && leaderScore - otherScore >= WIN_MARGIN) {
+        state.gameOver = true;
+        save();
+        stopVoiceRecognition();
+        playWinSound();
+        announceWinner(TEAM_LABELS[leader]);
+        showWinnerBanner(leader);
+    }
+}
+
+function showWinnerBanner(side) {
+    elements.winnerBanner.textContent = `${TEAM_LABELS[side]} Wins!`;
+    elements.winnerBanner.className = side === 'home' ? 'winner-blue' : 'winner-red';
+    elements.winnerBanner.hidden = false;
+}
+
+function hideWinnerBanner() {
+    elements.winnerBanner.hidden = true;
+    elements.winnerBanner.className = '';
+}
+
+// Sound Effects (Web Audio API — synthesized, no audio files needed, fully offline)
+let sfxContext = null;
+
+function getSfxContext() {
+    if (!sfxContext) {
+        sfxContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (sfxContext.state === 'suspended') {
+        sfxContext.resume();
+    }
+    return sfxContext;
+}
+
+function playTone(freq, duration, type, gain, delay) {
+    const ctx = getSfxContext();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    const startTime = ctx.currentTime + (delay || 0);
+    gainNode.gain.setValueAtTime(gain, startTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration / 1000);
+    osc.start(startTime);
+    osc.stop(startTime + duration / 1000 + 0.02);
+}
+
+function playPointSound() {
+    // Quick ascending two-note chime on every point scored.
+    playTone(523.25, 100, 'sine', 0.25, 0);    // C5
+    playTone(659.25, 120, 'sine', 0.25, 0.08); // E5
+}
+
+function playWinSound() {
+    // Ascending fanfare for match point.
+    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+    notes.forEach((freq, i) => playTone(freq, 220, 'triangle', 0.3, i * 0.15));
+}
+
+function announceWinner(teamLabel) {
+    if (!('speechSynthesis' in window)) return;
+    const utterance = new SpeechSynthesisUtterance(`${teamLabel} wins!`);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    setTimeout(() => speechSynthesis.speak(utterance), 700);
 }
 
 // Speech Recognition (Vosk — runs fully on-device via WASM, no cloud calls,
 // so it keeps working with zero connectivity once the model is cached).
 const VOSK_MODEL_URL = 'https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-en-us-0.15.tar.gz';
-const VOICE_GRAMMAR = JSON.stringify(['point home', 'point away', 'end match', '[unk]']);
+const VOICE_GRAMMAR = JSON.stringify(['point blue', 'point red', 'end match', '[unk]']);
 
 let voskModel = null;
 let recognizer = null;
@@ -129,10 +224,10 @@ async function startVoiceRecognition() {
         if (!text) return;
         console.log('Voice result:', text);
 
-        if (text.includes('point home')) {
+        if (text.includes('point blue')) {
             changeScore('home', 1);
             triggerFlash();
-        } else if (text.includes('point away')) {
+        } else if (text.includes('point red')) {
             changeScore('away', 1);
             triggerFlash();
         } else if (text.includes('end match')) {
@@ -234,6 +329,8 @@ elements.resetBtn.addEventListener('click', () => {
     if (confirm('Reset scores?')) {
         state.home = 0;
         state.away = 0;
+        state.gameOver = false;
+        hideWinnerBanner();
         updateUI();
         save();
     }
