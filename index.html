@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ScoreTracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a1a">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <header id="status-bar">
+            <div id="status-left">
+                <span id="listening-indicator">Listening...</span>
+            </div>
+            <div id="status-right">
+                <button id="install-btn" title="Install App" style="display: none;">Install</button>
+                <button id="end-match-btn" title="End Match">End</button>
+                <button id="fullscreen-btn" title="Toggle Fullscreen">⛶</button>
+                <button id="reset-btn">Reset</button>
+            </div>
+        </header>
+
+        <main id="scoreboard">
+            <div class="score-column" id="home-column">
+                <div class="label">HOME</div>
+                <div class="score-display" id="home-score">0</div>
+                <div class="controls">
+                    <button class="manual-btn" id="home-minus" aria-label="Decrease Home Score">−</button>
+                    <button class="manual-btn" id="home-plus" aria-label="Increase Home Score">+</button>
+                </div>
+            </div>
+            <div class="divider"></div>
+            <div class="score-column" id="away-column">
+                <div class="label">AWAY</div>
+                <div class="score-display" id="away-score">0</div>
+                <div class="controls">
+                    <button class="manual-btn" id="away-minus" aria-label="Decrease Away Score">−</button>
+                    <button class="manual-btn" id="away-plus" aria-label="Increase Away Score">+</button>
+                </div>
+            </div>
+        </main>
+
+        <div id="overlay">
+            <div class="overlay-content">
+                <h1>ScoreTracker</h1>
+                <p>Voice-Activated Ping Pong Scoreboard</p>
+                <button id="start-btn">Start Match</button>
+                <div id="pwa-instructions">
+                    <p style="margin-top: 2rem; color: #fff;"><strong>Add to Home Screen:</strong></p>
+                    <p style="font-size: 0.9rem; opacity: 0.8;">iPhone: Share > Add to Home<br>Android: Menu > Install
+                    </p>
+                </div>
+                <p class="hint">Voice: "Point Home" / "Point Away" / "End Match"</p>
+                <p class="secure-note" id="voice-model-note">Voice recognition runs fully on-device (Vosk). First launch needs internet once to download the ~40MB model; after that it works with zero connectivity.</p>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed', err));
+            });
+        }
+    </script>
+</body>
+
+</html>
