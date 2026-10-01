@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scoretracker-v9';
+const CACHE_NAME = 'scoretracker-v10';
 const CORE_ASSETS = [
     'index.html',
     'styles.css',
@@ -43,21 +43,20 @@ self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
 
     event.respondWith(
-        caches.match(event.request).then((cached) => {
-            if (cached) return cached;
-
-            return fetch(event.request).then((response) => {
-                if (response && response.ok) {
-                    const copy = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-                }
-                return response;
-            }).catch(() => {
-                if (event.request.mode === 'navigate') {
-                    return caches.match('index.html');
-                }
+        // Network-first: online always gets the latest files (no mixed-version
+        // html/js); the cache is only the offline fallback.
+        fetch(event.request, { cache: 'no-cache' }).then((response) => {
+            if (response && response.ok) {
+                const copy = response.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+            }
+            return response;
+        }).catch(() =>
+            caches.match(event.request).then((cached) => {
+                if (cached) return cached;
+                if (event.request.mode === 'navigate') return caches.match('index.html');
                 return Response.error();
-            });
-        })
+            })
+        )
     );
 });
