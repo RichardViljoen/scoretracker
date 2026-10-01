@@ -1,3 +1,5 @@
+// Keep in sync with CACHE_NAME in sw.js.
+const APP_VERSION = 'v7';
 const TEAM_LABELS = { home: 'Blue', away: 'Red' };
 const WIN_SCORE = 11;
 const WIN_MARGIN = 2;
@@ -26,7 +28,8 @@ const elements = {
     startBtn: document.getElementById('start-btn'),
     overlay: document.getElementById('overlay'),
     listeningIndicator: document.getElementById('listening-indicator'),
-    winnerBanner: document.getElementById('winner-banner')
+    winnerBanner: document.getElementById('winner-banner'),
+    winnerText: document.getElementById('winner-text')
 };
 
 // Initialize State from LocalStorage
@@ -122,7 +125,7 @@ function checkForWin() {
 }
 
 function showWinnerBanner(side) {
-    elements.winnerBanner.textContent = `${TEAM_LABELS[side]} Wins!`;
+    elements.winnerText.textContent = `${TEAM_LABELS[side]} Wins!`;
     elements.winnerBanner.className = side === 'home' ? 'winner-blue' : 'winner-red';
     elements.winnerBanner.hidden = false;
 }
@@ -130,6 +133,7 @@ function showWinnerBanner(side) {
 function hideWinnerBanner() {
     elements.winnerBanner.hidden = true;
     elements.winnerBanner.className = '';
+    elements.winnerText.textContent = '';
 }
 
 // Sound Effects (Web Audio API — synthesized, no audio files needed, fully offline)
@@ -331,18 +335,20 @@ installBtn.addEventListener('click', async () => {
     }
 });
 
+function newGame() {
+    state.home = 0;
+    state.away = 0;
+    state.gameOver = false;
+    history = [];
+    hideWinnerBanner();
+    updateUI();
+    save();
+}
+
 function startMatch() {
     console.log('Starting match...');
-    if (state.gameOver) {
-        // Previous game finished: Start Match means a fresh game, not the old banner.
-        state.home = 0;
-        state.away = 0;
-        state.gameOver = false;
-        history = [];
-        hideWinnerBanner();
-        updateUI();
-        save();
-    }
+    // Previous game finished: Start Match means a fresh game, not the old banner.
+    if (state.gameOver) newGame();
     state.isListening = true;
     elements.overlay.style.display = 'none';
     elements.listeningIndicator.style.display = 'flex';
@@ -370,6 +376,8 @@ elements.awayPlus.addEventListener('click', () => changeScore('away', 1));
 elements.awayMinus.addEventListener('click', () => changeScore('away', -1));
 
 elements.undoBtn.addEventListener('click', undo);
+document.getElementById('new-match-btn').addEventListener('click', newGame);
+document.getElementById('app-version').textContent = APP_VERSION;
 
 elements.resetBtn.addEventListener('click', () => {
     if (confirm('Reset scores?')) {
