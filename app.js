@@ -1,5 +1,5 @@
 // Keep in sync with CACHE_NAME in sw.js.
-const APP_VERSION = 'v7';
+const APP_VERSION = 'v8';
 const TEAM_LABELS = { home: 'Blue', away: 'Red' };
 const WIN_SCORE = 11;
 const WIN_MARGIN = 2;
@@ -377,6 +377,10 @@ elements.awayMinus.addEventListener('click', () => changeScore('away', -1));
 
 elements.undoBtn.addEventListener('click', undo);
 document.getElementById('new-match-btn').addEventListener('click', newGame);
+document.getElementById('home-btn').addEventListener('click', () => {
+    newGame();
+    endMatch();
+});
 document.getElementById('app-version').textContent = APP_VERSION;
 
 elements.resetBtn.addEventListener('click', () => {

@@ -467,3 +467,24 @@ body {
     opacity: 0.6;
     margin: 0.25rem 0 1rem;
 }
+
+.winner-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+#home-btn {
+    pointer-events: auto;
+    background: none;
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 8px;
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+}
