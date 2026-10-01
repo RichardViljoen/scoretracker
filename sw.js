@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scoretracker-v8';
+const CACHE_NAME = 'scoretracker-v9';
 const CORE_ASSETS = [
     'index.html',
     'styles.css',
@@ -14,7 +14,9 @@ const OPTIONAL_ASSETS = [
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(CORE_ASSETS).then(() => {
+            // cache:'reload' bypasses the browser HTTP cache so a new install never
+            // stores stale copies of the files it is meant to replace.
+            return cache.addAll(CORE_ASSETS.map((u) => new Request(u, { cache: 'reload' }))).then(() => {
                 // Cross-origin assets are best-effort: don't let a font-fetch
                 // failure (offline, flaky network) sink caching of core assets.
                 return Promise.all(
