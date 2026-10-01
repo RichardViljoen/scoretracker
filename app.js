@@ -9,6 +9,11 @@ const state = {
     gameOver: false
 };
 
+// Snapshots of {home, away, gameOver} taken before every change, so any
+// mistake (wrong team, wrong word, accidental win) can be undone.
+const MAX_HISTORY = 50;
+let history = [];
+
 const elements = {
     homeScore: document.getElementById('home-score'),
     awayScore: document.getElementById('away-score'),
@@ -16,6 +21,7 @@ const elements = {
     homeMinus: document.getElementById('home-minus'),
     awayPlus: document.getElementById('away-plus'),
     awayMinus: document.getElementById('away-minus'),
+    undoBtn: document.getElementById('undo-btn'),
     resetBtn: document.getElementById('reset-btn'),
     startBtn: document.getElementById('start-btn'),
     overlay: document.getElementById('overlay'),
@@ -31,6 +37,7 @@ function init() {
         state.home = parsed.home || 0;
         state.away = parsed.away || 0;
         state.gameOver = !!parsed.gameOver;
+        history = Array.isArray(parsed.history) ? parsed.history : [];
         updateUI();
         if (state.gameOver) {
             showWinnerBanner(state.home > state.away ? 'home' : 'away');
@@ -42,13 +49,37 @@ function save() {
     localStorage.setItem('scoretracker_state', JSON.stringify({
         home: state.home,
         away: state.away,
-        gameOver: state.gameOver
+        gameOver: state.gameOver,
+        history
     }));
+}
+
+function pushHistory() {
+    history.push({ home: state.home, away: state.away, gameOver: state.gameOver });
+    if (history.length > MAX_HISTORY) history.shift();
+}
+
+function undo() {
+    const previous = history.pop();
+    if (!previous) return false;
+    state.home = previous.home;
+    state.away = previous.away;
+    state.gameOver = previous.gameOver;
+    if (state.gameOver) {
+        showWinnerBanner(state.home > state.away ? 'home' : 'away');
+    } else {
+        hideWinnerBanner();
+        if ('speechSynthesis' in window) speechSynthesis.cancel();
+    }
+    updateUI();
+    save();
+    return true;
 }
 
 function updateUI() {
     elements.homeScore.textContent = state.home;
     elements.awayScore.textContent = state.away;
+    elements.undoBtn.disabled = history.length === 0;
 
     // Add visual feedback
     elements.homeScore.classList.add('bump');
@@ -62,6 +93,7 @@ function updateUI() {
 function changeScore(side, delta) {
     if (state.gameOver) return;
 
+    pushHistory();
     state[side] = Math.max(0, state[side] + delta);
     updateUI();
     save();
@@ -82,7 +114,7 @@ function checkForWin() {
     if (leaderScore >= WIN_SCORE && leaderScore - otherScore >= WIN_MARGIN) {
         state.gameOver = true;
         save();
-        stopVoiceRecognition();
+        // Mic stays on after a win so "undo" still works if the win was a mistake.
         playWinSound();
         announceWinner(TEAM_LABELS[leader]);
         showWinnerBanner(leader);
@@ -152,7 +184,7 @@ function announceWinner(teamLabel) {
 // Speech Recognition (Vosk — runs fully on-device via WASM, no cloud calls,
 // so it keeps working with zero connectivity once the model is cached).
 const VOSK_MODEL_URL = 'https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-en-us-0.15.tar.gz';
-const VOICE_GRAMMAR = JSON.stringify(['point blue', 'point red', 'end match', '[unk]']);
+const VOICE_GRAMMAR = JSON.stringify(['point blue', 'point red', 'undo point', 'end match', '[unk]']);
 
 let voskModel = null;
 let recognizer = null;
@@ -224,7 +256,9 @@ async function startVoiceRecognition() {
         if (!text) return;
         console.log('Voice result:', text);
 
-        if (text.includes('point blue')) {
+        if (text.includes('undo point')) {
+            if (undo()) triggerFlash();
+        } else if (text.includes('point blue')) {
             changeScore('home', 1);
             triggerFlash();
         } else if (text.includes('point red')) {
@@ -325,8 +359,11 @@ elements.homeMinus.addEventListener('click', () => changeScore('home', -1));
 elements.awayPlus.addEventListener('click', () => changeScore('away', 1));
 elements.awayMinus.addEventListener('click', () => changeScore('away', -1));
 
+elements.undoBtn.addEventListener('click', undo);
+
 elements.resetBtn.addEventListener('click', () => {
     if (confirm('Reset scores?')) {
+        pushHistory();
         state.home = 0;
         state.away = 0;
         state.gameOver = false;
@@ -363,6 +400,33 @@ fullscreenBtn.addEventListener('click', () => {
         }
     }
 });
+
+// Force-refresh: drop the service worker and caches, then reload from network.
+// Checks connectivity first so going offline can't leave the app with no cache.
+async function refreshApp() {
+    const btn = document.getElementById('refresh-btn');
+    btn.disabled = true;
+    btn.textContent = 'Updating...';
+    try {
+        const probe = await fetch('index.html', { cache: 'no-store' });
+        if (!probe.ok) throw new Error('HTTP ' + probe.status);
+        if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+        }
+        if (window.caches) {
+            const names = await caches.keys();
+            await Promise.all(names.map((n) => caches.delete(n)));
+        }
+        window.location.reload();
+    } catch (e) {
+        console.error('Refresh failed:', e);
+        btn.disabled = false;
+        btn.textContent = 'Update failed — need internet';
+        setTimeout(() => { btn.textContent = 'Update App'; }, 3000);
+    }
+}
+document.getElementById('refresh-btn').addEventListener('click', refreshApp);
 
 // Init call
 init();

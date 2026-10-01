@@ -26,6 +26,7 @@
                 <button id="install-btn" title="Install App" style="display: none;">Install</button>
                 <button id="end-match-btn" title="End Match">End</button>
                 <button id="fullscreen-btn" title="Toggle Fullscreen">⛶</button>
+                <button id="undo-btn" title="Undo last change" disabled>Undo</button>
                 <button id="reset-btn">Reset</button>
             </div>
         </header>
@@ -57,12 +58,13 @@
                 <h1>ScoreTracker</h1>
                 <p>Voice-Activated Ping Pong Scoreboard</p>
                 <button id="start-btn">Start Match</button>
+                <button id="refresh-btn">Update App</button>
                 <div id="pwa-instructions">
                     <p style="margin-top: 2rem; color: #fff;"><strong>Add to Home Screen:</strong></p>
                     <p style="font-size: 0.9rem; opacity: 0.8;">iPhone: Share > Add to Home<br>Android: Menu > Install
                     </p>
                 </div>
-                <p class="hint">Voice: "Point Blue" / "Point Red" / "End Match"</p>
+                <p class="hint">Voice: "Point Blue" / "Point Red" / "Undo Point" / "End Match"</p>
                 <p class="secure-note" id="voice-model-note">Voice recognition runs fully on-device (Vosk). First launch needs internet once to download the ~40MB model; after that it works with zero connectivity.</p>
             </div>
         </div>
