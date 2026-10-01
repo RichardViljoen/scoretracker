@@ -333,6 +333,16 @@ installBtn.addEventListener('click', async () => {
 
 function startMatch() {
     console.log('Starting match...');
+    if (state.gameOver) {
+        // Previous game finished: Start Match means a fresh game, not the old banner.
+        state.home = 0;
+        state.away = 0;
+        state.gameOver = false;
+        history = [];
+        hideWinnerBanner();
+        updateUI();
+        save();
+    }
     state.isListening = true;
     elements.overlay.style.display = 'none';
     elements.listeningIndicator.style.display = 'flex';
