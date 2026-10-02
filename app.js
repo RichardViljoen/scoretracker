@@ -1,5 +1,5 @@
 // Keep in sync with CACHE_NAME in sw.js.
-const APP_VERSION = 'v12';
+const APP_VERSION = 'v13';
 const TEAM_LABELS = { home: 'Blue', away: 'Red' };
 const WIN_SCORE = 11;
 const WIN_MARGIN = 2;
@@ -184,7 +184,26 @@ function playWinSound() {
 // Reads the score right after each update. Cancels any in-flight speech first
 // so rapid points never queue up and fall behind the game.
 const SCORE_ANNOUNCE_DELAY_MS = 1000;
+const PREFERRED_ACCENTS = ['en-za', 'en-gb']; // South African first, then British
 let announceTimer = null;
+
+// Builds an utterance in the first available preferred accent. Voices vary by
+// device, so fall back to setting only the lang and let the OS choose.
+function makeUtterance(text) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.volume = 1;
+    const voices = speechSynthesis.getVoices();
+    for (const accent of PREFERRED_ACCENTS) {
+        const voice = voices.find((v) => v.lang.replace('_', '-').toLowerCase() === accent);
+        if (voice) {
+            utterance.voice = voice;
+            utterance.lang = voice.lang;
+            return utterance;
+        }
+    }
+    utterance.lang = 'en-GB';
+    return utterance;
+}
 
 function announceScore() {
     if (!('speechSynthesis' in window)) return;
@@ -193,7 +212,7 @@ function announceScore() {
     // Wait a moment after the update; reads the score as it is when the timer
     // fires, so a quick second point is announced once with the latest score.
     announceTimer = setTimeout(() => {
-        const utterance = new SpeechSynthesisUtterance(
+        const utterance = makeUtterance(
             `${TEAM_LABELS.home} ${state.home}, ${TEAM_LABELS.away} ${state.away}`
         );
         utterance.rate = 1.3;
@@ -214,9 +233,8 @@ function warmUpSpeech() {
 function announceWinner(teamLabel) {
     if (!('speechSynthesis' in window)) return;
     clearTimeout(announceTimer);
-    const utterance = new SpeechSynthesisUtterance(`${teamLabel} wins!`);
+    const utterance = makeUtterance(`${teamLabel} wins!`);
     utterance.rate = 1;
-    utterance.pitch = 1;
     setTimeout(() => speechSynthesis.speak(utterance), 700);
 }
 
