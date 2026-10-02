@@ -1,5 +1,5 @@
 // Keep in sync with CACHE_NAME in sw.js.
-const APP_VERSION = 'v10';
+const APP_VERSION = 'v11';
 const TEAM_LABELS = { home: 'Blue', away: 'Red' };
 const WIN_SCORE = 11;
 const WIN_MARGIN = 2;
@@ -72,7 +72,10 @@ function undo() {
         showWinnerBanner(state.home > state.away ? 'home' : 'away');
     } else {
         hideWinnerBanner();
-        if ('speechSynthesis' in window) speechSynthesis.cancel();
+        updateUI();
+        save();
+        announceScore();
+        return true;
     }
     updateUI();
     save();
@@ -105,6 +108,7 @@ function changeScore(side, delta) {
         playPointSound();
         checkForWin();
     }
+    if (!state.gameOver) announceScore();
 }
 
 function checkForWin() {
@@ -177,6 +181,28 @@ function playWinSound() {
     notes.forEach((freq, i) => playTone(freq, 220, 'triangle', 0.3, i * 0.15));
 }
 
+// Reads the score right after each update. Cancels any in-flight speech first
+// so rapid points never queue up and fall behind the game.
+function announceScore() {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(
+        `${TEAM_LABELS.home} ${state.home}, ${TEAM_LABELS.away} ${state.away}`
+    );
+    utterance.rate = 1.3;
+    speechSynthesis.speak(utterance);
+}
+
+// The first speak() on a cold engine is slow (voice list loads lazily), so
+// warm it up with a silent utterance when the match starts.
+function warmUpSpeech() {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.getVoices();
+    const silent = new SpeechSynthesisUtterance(' ');
+    silent.volume = 0;
+    speechSynthesis.speak(silent);
+}
+
 function announceWinner(teamLabel) {
     if (!('speechSynthesis' in window)) return;
     const utterance = new SpeechSynthesisUtterance(`${teamLabel} wins!`);
@@ -238,6 +264,24 @@ async function loadVoiceModel() {
     }
 }
 
+// Returns true if the text was a recognised command (and has been acted on).
+function handleVoiceCommand(text) {
+    if (text.includes('undo point')) {
+        undo();
+    } else if (text.includes('point blue')) {
+        changeScore('home', 1);
+    } else if (text.includes('point red')) {
+        changeScore('away', 1);
+    } else if (text.includes('end match')) {
+        endMatch();
+    } else {
+        return false;
+    }
+    console.log('Voice command:', text);
+    triggerFlash();
+    return true;
+}
+
 async function startVoiceRecognition() {
     if (!voskModel || recognizer) return;
 
@@ -255,26 +299,25 @@ async function startVoiceRecognition() {
     const source = audioContext.createMediaStreamSource(micStream);
 
     recognizer = new voskModel.KaldiRecognizer(audioContext.sampleRate, VOICE_GRAMMAR);
+    // Vosk only emits 'result' after it detects trailing silence, which is the
+    // main source of lag. With this tiny grammar a partial result is already
+    // unambiguous, so act on it immediately and ignore the final that follows.
+    let handledPartial = false;
+    recognizer.on('partialresult', (message) => {
+        if (handledPartial) return;
+        const text = (message.result.partial || '').toLowerCase();
+        if (handleVoiceCommand(text)) handledPartial = true;
+    });
     recognizer.on('result', (message) => {
         const text = (message.result.text || '').toLowerCase();
-        if (!text) return;
-        console.log('Voice result:', text);
-
-        if (text.includes('undo point')) {
-            if (undo()) triggerFlash();
-        } else if (text.includes('point blue')) {
-            changeScore('home', 1);
-            triggerFlash();
-        } else if (text.includes('point red')) {
-            changeScore('away', 1);
-            triggerFlash();
-        } else if (text.includes('end match')) {
-            endMatch();
-            triggerFlash();
+        if (handledPartial) {
+            handledPartial = false;
+            return;
         }
+        if (text) handleVoiceCommand(text);
     });
 
-    scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+    scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
     scriptProcessor.onaudioprocess = (event) => {
         try {
             recognizer.acceptWaveform(event.inputBuffer);
@@ -352,6 +395,7 @@ function startMatch() {
     state.isListening = true;
     elements.overlay.style.display = 'none';
     elements.listeningIndicator.style.display = 'flex';
+    warmUpSpeech();
 
     if (voskModel) {
         startVoiceRecognition();
