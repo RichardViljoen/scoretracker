@@ -1,5 +1,5 @@
 // Keep in sync with CACHE_NAME in sw.js.
-const APP_VERSION = 'v11';
+const APP_VERSION = 'v12';
 const TEAM_LABELS = { home: 'Blue', away: 'Red' };
 const WIN_SCORE = 11;
 const WIN_MARGIN = 2;
@@ -183,14 +183,22 @@ function playWinSound() {
 
 // Reads the score right after each update. Cancels any in-flight speech first
 // so rapid points never queue up and fall behind the game.
+const SCORE_ANNOUNCE_DELAY_MS = 1000;
+let announceTimer = null;
+
 function announceScore() {
     if (!('speechSynthesis' in window)) return;
     speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(
-        `${TEAM_LABELS.home} ${state.home}, ${TEAM_LABELS.away} ${state.away}`
-    );
-    utterance.rate = 1.3;
-    speechSynthesis.speak(utterance);
+    clearTimeout(announceTimer);
+    // Wait a moment after the update; reads the score as it is when the timer
+    // fires, so a quick second point is announced once with the latest score.
+    announceTimer = setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance(
+            `${TEAM_LABELS.home} ${state.home}, ${TEAM_LABELS.away} ${state.away}`
+        );
+        utterance.rate = 1.3;
+        speechSynthesis.speak(utterance);
+    }, SCORE_ANNOUNCE_DELAY_MS);
 }
 
 // The first speak() on a cold engine is slow (voice list loads lazily), so
@@ -205,6 +213,7 @@ function warmUpSpeech() {
 
 function announceWinner(teamLabel) {
     if (!('speechSynthesis' in window)) return;
+    clearTimeout(announceTimer);
     const utterance = new SpeechSynthesisUtterance(`${teamLabel} wins!`);
     utterance.rate = 1;
     utterance.pitch = 1;
