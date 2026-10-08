@@ -111,25 +111,30 @@ body {
 }
 
 @keyframes flash {
-    0% {
-        background-color: var(--flash-color, rgba(255, 255, 255, 0.4));
-    }
+    0% { background-color: rgba(255, 255, 255, 0.4); }
+    100% { background-color: transparent; }
+}
 
-    100% {
-        background-color: transparent;
-    }
+@keyframes flash-home {
+    0% { background-color: rgba(59, 130, 246, 0.6); }
+    100% { background-color: transparent; }
+}
+
+@keyframes flash-away {
+    0% { background-color: rgba(239, 68, 68, 0.6); }
+    100% { background-color: transparent; }
 }
 
 .flash-active {
     animation: flash 0.3s ease-out;
 }
 
-body.flash-home {
-    --flash-color: rgba(59, 130, 246, 0.6);
+.flash-active.flash-home {
+    animation-name: flash-home;
 }
 
-body.flash-away {
-    --flash-color: rgba(239, 68, 68, 0.6);
+.flash-active.flash-away {
+    animation-name: flash-away;
 }
 
 #central-controls {
