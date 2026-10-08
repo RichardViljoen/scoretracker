@@ -110,31 +110,33 @@ body {
     transform: scale(1.05);
 }
 
+/* The flash is a separate overlay: animating the body background itself
+   fades it to "transparent", which the browser paints as white. */
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0;
+    background: rgba(255, 255, 255, 0.4);
+}
+
+body.flash-home::after {
+    background: rgba(59, 130, 246, 0.6);
+}
+
+body.flash-away::after {
+    background: rgba(239, 68, 68, 0.6);
+}
+
 @keyframes flash {
-    0% { background-color: rgba(255, 255, 255, 0.4); }
-    100% { background-color: transparent; }
+    0% { opacity: 1; }
+    100% { opacity: 0; }
 }
 
-@keyframes flash-home {
-    0% { background-color: rgba(59, 130, 246, 0.6); }
-    100% { background-color: transparent; }
-}
-
-@keyframes flash-away {
-    0% { background-color: rgba(239, 68, 68, 0.6); }
-    100% { background-color: transparent; }
-}
-
-.flash-active {
+body.flash-active::after {
     animation: flash 0.3s ease-out;
-}
-
-.flash-active.flash-home {
-    animation-name: flash-home;
-}
-
-.flash-active.flash-away {
-    animation-name: flash-away;
 }
 
 #central-controls {
