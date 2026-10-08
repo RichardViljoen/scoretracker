@@ -187,11 +187,20 @@ const SCORE_ANNOUNCE_DELAY_MS = 1000;
 const PREFERRED_ACCENTS = ['en-za', 'en-gb']; // South African first, then British
 let announceTimer = null;
 
+// True while our own voice is playing; voice commands are ignored meanwhile
+// because echo cancellation is off (see startVoiceRecognition).
+let isAnnouncing = false;
+
 // Builds an utterance in the first available preferred accent. Voices vary by
 // device, so fall back to setting only the lang and let the OS choose.
 function makeUtterance(text) {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.volume = 1;
+    utterance.onstart = () => { isAnnouncing = true; };
+    // Short tail so the mic doesn't pick up the end of our own voice.
+    utterance.onend = utterance.onerror = () => {
+        setTimeout(() => { isAnnouncing = speechSynthesis.speaking; }, 400);
+    };
     const voices = speechSynthesis.getVoices();
     for (const accent of PREFERRED_ACCENTS) {
         const voice = voices.find((v) => v.lang.replace('_', '-').toLowerCase() === accent);
@@ -293,6 +302,7 @@ async function loadVoiceModel() {
 
 // Returns true if the text was a recognised command (and has been acted on).
 function handleVoiceCommand(text) {
+    if (isAnnouncing) return false;
     if (text.includes('undo point')) {
         undo();
     } else if (text.includes('point blue')) {
@@ -314,7 +324,11 @@ async function startVoiceRecognition() {
 
     try {
         micStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 }
+            // Echo cancellation / noise suppression make Android treat the mic as a
+            // voice call, which reroutes speech output away from Bluetooth speakers.
+            // Our own announcements are ignored in the recognizer instead
+            // (see isAnnouncing).
+            audio: { echoCancellation: false, noiseSuppression: false, channelCount: 1 }
         });
     } catch (e) {
         console.error('Microphone access denied:', e);
