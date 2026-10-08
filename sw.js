@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scoretracker-v14';
+const CACHE_NAME = 'scoretracker-v15';
 const CORE_ASSETS = [
     'index.html',
     'styles.css',

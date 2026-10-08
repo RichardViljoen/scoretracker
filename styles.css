@@ -112,7 +112,7 @@ body {
 
 @keyframes flash {
     0% {
-        background-color: rgba(255, 255, 255, 0.4);
+        background-color: var(--flash-color, rgba(255, 255, 255, 0.4));
     }
 
     100% {
@@ -122,6 +122,14 @@ body {
 
 .flash-active {
     animation: flash 0.3s ease-out;
+}
+
+body.flash-home {
+    --flash-color: rgba(59, 130, 246, 0.6);
+}
+
+body.flash-away {
+    --flash-color: rgba(239, 68, 68, 0.6);
 }
 
 #central-controls {

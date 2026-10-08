@@ -1,5 +1,5 @@
 // Keep in sync with CACHE_NAME in sw.js.
-const APP_VERSION = 'v14';
+const APP_VERSION = 'v15';
 const TEAM_LABELS = { home: 'Blue', away: 'Red' };
 const WIN_SCORE = 11;
 const WIN_MARGIN = 2;
@@ -303,19 +303,22 @@ async function loadVoiceModel() {
 // Returns true if the text was a recognised command (and has been acted on).
 function handleVoiceCommand(text) {
     if (isAnnouncing) return false;
+    let side = null;
     if (text.includes('undo point')) {
         undo();
     } else if (text.includes('point blue')) {
         changeScore('home', 1);
+        side = 'home';
     } else if (text.includes('point red')) {
         changeScore('away', 1);
+        side = 'away';
     } else if (text.includes('end match')) {
         endMatch();
     } else {
         return false;
     }
     console.log('Voice command:', text);
-    triggerFlash();
+    triggerFlash(side);
     return true;
 }
 
@@ -392,10 +395,14 @@ function stopVoiceRecognition() {
     setVoiceStatus(voskModel ? 'ready' : 'unavailable');
 }
 
-function triggerFlash() {
+// side: 'home' | 'away' flashes that team's colour; null flashes white.
+function triggerFlash(side = null) {
+    const sideClass = side ? `flash-${side}` : null;
+    if (sideClass) document.body.classList.add(sideClass);
     document.body.classList.add('flash-active');
     setTimeout(() => {
         document.body.classList.remove('flash-active');
+        if (sideClass) document.body.classList.remove(sideClass);
     }, 300);
 }
 
