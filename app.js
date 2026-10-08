@@ -1,5 +1,5 @@
 // Keep in sync with CACHE_NAME in sw.js.
-const APP_VERSION = 'v17';
+const APP_VERSION = 'v18';
 const TEAM_LABELS = { home: 'Blue', away: 'Red' };
 const WIN_SCORE = 11;
 const WIN_MARGIN = 2;
@@ -250,7 +250,7 @@ function announceWinner(teamLabel) {
 // Speech Recognition (Vosk — runs fully on-device via WASM, no cloud calls,
 // so it keeps working with zero connectivity once the model is cached).
 const VOSK_MODEL_URL = 'https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-en-us-0.15.tar.gz';
-const VOICE_GRAMMAR = JSON.stringify(['point blue', 'point red', 'undo point', 'end match', '[unk]']);
+const VOICE_GRAMMAR = JSON.stringify(['point blue', 'point red', 'undo point', 'end match', 'reset game', '[unk]']);
 
 let voskModel = null;
 let recognizer = null;
@@ -314,6 +314,9 @@ function handleVoiceCommand(text) {
         side = 'away';
     } else if (text.includes('end match')) {
         endMatch();
+    } else if (text.includes('reset game')) {
+        resetScores();
+        announceScore();
     } else {
         return false;
     }
@@ -396,6 +399,7 @@ function stopVoiceRecognition() {
 }
 
 // side: 'home' | 'away' flashes that team's colour; null flashes white.
+const FLASH_MS = 1000; // keep in sync with the flash animation in styles.css
 function triggerFlash(side = null) {
     const sideClass = side ? `flash-${side}` : null;
     if (sideClass) document.body.classList.add(sideClass);
@@ -403,7 +407,7 @@ function triggerFlash(side = null) {
     setTimeout(() => {
         document.body.classList.remove('flash-active');
         if (sideClass) document.body.classList.remove(sideClass);
-    }, 300);
+    }, FLASH_MS);
 }
 
 // Installation Logic
@@ -431,6 +435,17 @@ function newGame() {
     state.away = 0;
     state.gameOver = false;
     history = [];
+    hideWinnerBanner();
+    updateUI();
+    save();
+}
+
+// Zeroes the score but keeps it undoable (also used by the "reset game" voice command).
+function resetScores() {
+    pushHistory();
+    state.home = 0;
+    state.away = 0;
+    state.gameOver = false;
     hideWinnerBanner();
     updateUI();
     save();
@@ -476,15 +491,7 @@ document.getElementById('home-btn').addEventListener('click', () => {
 document.getElementById('app-version').textContent = APP_VERSION;
 
 elements.resetBtn.addEventListener('click', () => {
-    if (confirm('Reset scores?')) {
-        pushHistory();
-        state.home = 0;
-        state.away = 0;
-        state.gameOver = false;
-        hideWinnerBanner();
-        updateUI();
-        save();
-    }
+    if (confirm('Reset scores?')) resetScores();
 });
 
 elements.startBtn.addEventListener('click', startMatch);

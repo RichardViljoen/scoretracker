@@ -136,7 +136,7 @@ body.flash-away::after {
 }
 
 body.flash-active::after {
-    animation: flash 0.3s ease-out;
+    animation: flash 1s ease-out;
 }
 
 #central-controls {
