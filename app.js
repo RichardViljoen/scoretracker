@@ -1,5 +1,5 @@
 // Keep in sync with CACHE_NAME in sw.js.
-const APP_VERSION = 'v19';
+const APP_VERSION = 'v20';
 const TEAM_LABELS = { home: 'Blue', away: 'Red' };
 const WIN_SCORE = 11;
 const WIN_MARGIN = 2;
@@ -254,7 +254,7 @@ const VOSK_MODEL_URL = 'https://ccoreilly.github.io/vosk-browser/models/vosk-mod
 const WAKE_WORD = 'computer';
 const VOICE_GRAMMAR = JSON.stringify([
     'point blue', 'point red', 'undo point',
-    `${WAKE_WORD} end match`, `${WAKE_WORD} reset game`, '[unk]'
+    `${WAKE_WORD} end match`, `${WAKE_WORD} reset match`, '[unk]'
 ]);
 // Final results below this per-word confidence are ignored. Logged on every
 // final result ("Voice final") so it can be tuned from real-world numbers.
@@ -328,7 +328,7 @@ function handleVoiceCommand(text, isFinal = true) {
         undo();
     } else if (text.includes(`${WAKE_WORD} end match`)) {
         endMatch();
-    } else if (text.includes(`${WAKE_WORD} reset game`)) {
+    } else if (text.includes(`${WAKE_WORD} reset match`)) {
         resetScores();
         announceScore();
     } else {
@@ -471,7 +471,7 @@ function newGame() {
     save();
 }
 
-// Zeroes the score but keeps it undoable (also used by the "reset game" voice command).
+// Zeroes the score but keeps it undoable (also used by the "reset match" voice command).
 function resetScores() {
     pushHistory();
     state.home = 0;
