@@ -24,7 +24,9 @@ Other sessions may share this working directory. Commit explicit paths only
   not fed to the recognizer while `isAnnouncing`.
 - Only `point red` / `point blue` may fire from a partial result, and only after
   `PARTIAL_STABLE_COUNT` identical partials. Everything else waits for the final result.
-- `end match` / `reset match` require the wake word ("computer ...").
+- `end match` / `reset match` / `start match` require the wake word ("computer ...").
+- A voice "end match" leaves the mic open (standby) so "computer start match" works; in standby
+  nothing else is accepted. The End/Home buttons turn the mic fully off.
 - Final results are logged as `Voice final: <text> minConf <n>`; tune `VOICE_MIN_CONFIDENCE` from that.
 - Stability history: v10 (1 Oct) was stable; v11 added spoken score + partial results and v14
   turned echo cancellation off. If voice gets flaky again, bisect between those.

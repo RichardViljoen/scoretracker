@@ -1,5 +1,5 @@
 // Keep in sync with CACHE_NAME in sw.js.
-const APP_VERSION = 'v20';
+const APP_VERSION = 'v21';
 const TEAM_LABELS = { home: 'Blue', away: 'Red' };
 const WIN_SCORE = 11;
 const WIN_MARGIN = 2;
@@ -254,7 +254,7 @@ const VOSK_MODEL_URL = 'https://ccoreilly.github.io/vosk-browser/models/vosk-mod
 const WAKE_WORD = 'computer';
 const VOICE_GRAMMAR = JSON.stringify([
     'point blue', 'point red', 'undo point',
-    `${WAKE_WORD} end match`, `${WAKE_WORD} reset match`, '[unk]'
+    `${WAKE_WORD} end match`, `${WAKE_WORD} reset match`, `${WAKE_WORD} start match`, '[unk]'
 ]);
 // Final results below this per-word confidence are ignored. Logged on every
 // final result ("Voice final") so it can be tuned from real-world numbers.
@@ -310,11 +310,22 @@ async function loadVoiceModel() {
     }
 }
 
+// On the start screen (mic open after a voice "end match") the only command
+// that does anything is the wake-word start; points must not score here.
+function handleStandbyCommand(text, isFinal) {
+    if (!isFinal || !text.includes(`${WAKE_WORD} start match`)) return false;
+    console.log('Voice command (standby):', text);
+    startMatch();
+    triggerFlash(null);
+    return true;
+}
+
 // Returns true if the text was a recognised command (and has been acted on).
 // Partial results (isFinal=false) may only score a point: undo and the
 // wake-word commands wait for the final result and its confidence check.
 function handleVoiceCommand(text, isFinal = true) {
     if (isAnnouncing) return false;
+    if (!state.isListening) return handleStandbyCommand(text, isFinal);
     let side = null;
     if (text.includes('point blue')) {
         changeScore('home', 1);
@@ -327,7 +338,7 @@ function handleVoiceCommand(text, isFinal = true) {
     } else if (text.includes('undo point')) {
         undo();
     } else if (text.includes(`${WAKE_WORD} end match`)) {
-        endMatch();
+        endMatch(true);
     } else if (text.includes(`${WAKE_WORD} reset match`)) {
         resetScores();
         announceScore();
@@ -498,13 +509,15 @@ function startMatch() {
     }
 }
 
-function endMatch() {
-    console.log('Ending match manually.');
+// standby=true (voice "end match") keeps the mic open on the start screen so
+// "computer start match" can be heard; buttons turn the mic fully off.
+function endMatch(standby = false) {
+    console.log('Ending match', standby ? '(voice standby).' : 'manually.');
     state.isListening = false;
     elements.overlay.style.display = 'flex';
     elements.listeningIndicator.style.display = 'none';
 
-    stopVoiceRecognition();
+    if (!standby) stopVoiceRecognition();
 }
 
 // Event Listeners
