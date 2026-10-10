@@ -1,5 +1,5 @@
 // Keep in sync with CACHE_NAME in sw.js.
-const APP_VERSION = 'v18';
+const APP_VERSION = 'v19';
 const TEAM_LABELS = { home: 'Blue', away: 'Red' };
 const WIN_SCORE = 11;
 const WIN_MARGIN = 2;
@@ -250,7 +250,17 @@ function announceWinner(teamLabel) {
 // Speech Recognition (Vosk — runs fully on-device via WASM, no cloud calls,
 // so it keeps working with zero connectivity once the model is cached).
 const VOSK_MODEL_URL = 'https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-en-us-0.15.tar.gz';
-const VOICE_GRAMMAR = JSON.stringify(['point blue', 'point red', 'undo point', 'end match', 'reset game', '[unk]']);
+// Destructive commands need the wake word so ambient chatter can't trigger them.
+const WAKE_WORD = 'computer';
+const VOICE_GRAMMAR = JSON.stringify([
+    'point blue', 'point red', 'undo point',
+    `${WAKE_WORD} end match`, `${WAKE_WORD} reset game`, '[unk]'
+]);
+// Final results below this per-word confidence are ignored. Logged on every
+// final result ("Voice final") so it can be tuned from real-world numbers.
+const VOICE_MIN_CONFIDENCE = 0.6;
+// Consecutive identical partials (~45ms each) before a point is scored early.
+const PARTIAL_STABLE_COUNT = 4;
 
 let voskModel = null;
 let recognizer = null;
@@ -301,20 +311,24 @@ async function loadVoiceModel() {
 }
 
 // Returns true if the text was a recognised command (and has been acted on).
-function handleVoiceCommand(text) {
+// Partial results (isFinal=false) may only score a point: undo and the
+// wake-word commands wait for the final result and its confidence check.
+function handleVoiceCommand(text, isFinal = true) {
     if (isAnnouncing) return false;
     let side = null;
-    if (text.includes('undo point')) {
-        undo();
-    } else if (text.includes('point blue')) {
+    if (text.includes('point blue')) {
         changeScore('home', 1);
         side = 'home';
     } else if (text.includes('point red')) {
         changeScore('away', 1);
         side = 'away';
-    } else if (text.includes('end match')) {
+    } else if (!isFinal) {
+        return false;
+    } else if (text.includes('undo point')) {
+        undo();
+    } else if (text.includes(`${WAKE_WORD} end match`)) {
         endMatch();
-    } else if (text.includes('reset game')) {
+    } else if (text.includes(`${WAKE_WORD} reset game`)) {
         resetScores();
         announceScore();
     } else {
@@ -346,26 +360,43 @@ async function startVoiceRecognition() {
     const source = audioContext.createMediaStreamSource(micStream);
 
     recognizer = new voskModel.KaldiRecognizer(audioContext.sampleRate, VOICE_GRAMMAR);
+    recognizer.setWords(true);
     // Vosk only emits 'result' after it detects trailing silence, which is the
-    // main source of lag. With this tiny grammar a partial result is already
-    // unambiguous, so act on it immediately and ignore the final that follows.
+    // main source of lag. Act on a partial only once it has held the same text
+    // for PARTIAL_STABLE_COUNT updates: red/blue differ in the last phones, so
+    // the first partial can be a half-heard word. If the partial never settles
+    // the final result still handles it (slower, but not wrong).
     let handledPartial = false;
+    let lastPartial = '';
+    let partialRepeats = 0;
     recognizer.on('partialresult', (message) => {
         if (handledPartial) return;
         const text = (message.result.partial || '').toLowerCase();
-        if (handleVoiceCommand(text)) handledPartial = true;
+        partialRepeats = text === lastPartial ? partialRepeats + 1 : 1;
+        lastPartial = text;
+        if (partialRepeats < PARTIAL_STABLE_COUNT) return;
+        if (handleVoiceCommand(text, false)) handledPartial = true;
     });
     recognizer.on('result', (message) => {
         const text = (message.result.text || '').toLowerCase();
+        lastPartial = '';
+        partialRepeats = 0;
         if (handledPartial) {
             handledPartial = false;
             return;
         }
-        if (text) handleVoiceCommand(text);
+        if (!text) return;
+        // Per-word confidence is only present when setWords(true) is on.
+        const words = message.result.result || [];
+        const minConf = words.length ? Math.min(...words.map((w) => w.conf)) : 1;
+        console.log('Voice final:', text, 'minConf', minConf.toFixed(2));
+        if (minConf >= VOICE_MIN_CONFIDENCE) handleVoiceCommand(text, true);
     });
 
     scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
     scriptProcessor.onaudioprocess = (event) => {
+        // Don't feed our own announcement to the recognizer (no echo cancellation).
+        if (isAnnouncing) return;
         try {
             recognizer.acceptWaveform(event.inputBuffer);
         } catch (e) {
